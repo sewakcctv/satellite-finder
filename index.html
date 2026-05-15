@@ -741,6 +741,14 @@ async function startApp() {
   show('loading');
 
   try {
+    // iOS orientation permission must be requested first, directly within the
+    // user gesture context — any prior await invalidates the gesture on iOS Safari.
+    if (typeof DeviceOrientationEvent !== 'undefined' &&
+        typeof DeviceOrientationEvent.requestPermission === 'function') {
+      const perm = await DeviceOrientationEvent.requestPermission();
+      if (perm !== 'granted') throw new Error('Motion sensor access denied. Please tap "Allow" when prompted.');
+    }
+
     // Camera
     stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: 'environment', width: { ideal: 1920 } },
@@ -749,13 +757,6 @@ async function startApp() {
     const video = document.getElementById('video');
     video.srcObject = stream;
     await video.play().catch(() => {});
-
-    // iOS orientation permission
-    if (typeof DeviceOrientationEvent !== 'undefined' &&
-        typeof DeviceOrientationEvent.requestPermission === 'function') {
-      const perm = await DeviceOrientationEvent.requestPermission();
-      if (perm !== 'granted') throw new Error('Motion sensor access denied. Please tap "Allow" when prompted.');
-    }
 
     // Orientation listeners
     function handleOrient(e, isAbsolute) {
