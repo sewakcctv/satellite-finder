@@ -292,6 +292,7 @@
 <div id="errScreen">
   <div class="err-icon">⚠️</div>
   <p id="errMsg">Something went wrong.</p>
+  <a id="openInBrowserBtn" style="display:none;width:100%;max-width:320px;padding:14px;border-radius:14px;background:#22d3ee;color:#050a12;font-size:16px;font-weight:700;border:none;text-align:center;text-decoration:none;" href="">Open in Browser</a>
   <button id="retryBtn" onclick="show('intro')">Go Back</button>
 </div>
 
@@ -392,9 +393,21 @@ function show(id) {
   });
 }
 
-function showError(msg) {
+function showError(msg, showOpenBtn) {
   document.getElementById('errMsg').textContent = msg;
+  const btn = document.getElementById('openInBrowserBtn');
+  if (showOpenBtn) {
+    btn.href = location.href;
+    btn.style.display = 'block';
+  } else {
+    btn.style.display = 'none';
+  }
   show('errScreen');
+}
+
+function isInAppBrowser() {
+  const ua = navigator.userAgent || '';
+  return /FBAN|FBAV|Instagram|WhatsApp|Snapchat|Twitter\/|Line\//i.test(ua);
 }
 
 // ── GEO Satellite Database ────────────────────────────────────────────────────
@@ -829,8 +842,16 @@ async function _doStart() {
 }
 
 // Must be a plain (non-async) function so that requestPermission() is called
-// synchronously within the user gesture — iOS Safari rejects it otherwise.
+// synchronously within the user gesture — iOS Safari/Chrome rejects it otherwise.
 function startApp() {
+  if (isInAppBrowser()) {
+    showError(
+      'This app needs compass access which is blocked inside WhatsApp, Instagram, and other in-app browsers.\n\nPlease open this page directly in Safari or Chrome.',
+      true
+    );
+    return;
+  }
+
   show('loading');
 
   if (typeof DeviceOrientationEvent !== 'undefined' &&
@@ -838,12 +859,15 @@ function startApp() {
     DeviceOrientationEvent.requestPermission()
       .then(perm => {
         if (perm !== 'granted') {
-          showError('Motion sensor access denied. Please allow motion sensors in iOS Settings → Safari.');
+          showError('Motion sensor access denied. Please allow motion sensors in iOS Settings.');
           return;
         }
         _doStart();
       })
-      .catch(err => showError(err.message || 'Motion sensor permission request failed.'));
+      .catch(() => showError(
+        'Compass access was blocked. Please open this page directly in Safari or Chrome (not through WhatsApp or another app).',
+        true
+      ));
   } else {
     _doStart();
   }
