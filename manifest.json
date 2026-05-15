@@ -1,0 +1,17 @@
+{
+  "name": "Satellite Finder",
+  "short_name": "SatFinder",
+  "description": "AR satellite dish pointer — find any GEO or LEO satellite by pointing your phone at the sky",
+  "start_url": ".",
+  "scope": ".",
+  "display": "fullscreen",
+  "orientation": "portrait-primary",
+  "theme_color": "#22d3ee",
+  "background_color": "#050a12",
+  "categories": ["navigation", "utilities"],
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" }
+  ]
+}
