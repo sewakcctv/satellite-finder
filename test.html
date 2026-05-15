@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Satellite Finder</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #050a12;
+      color: #fff;
+      height: 100dvh;
+      overflow: hidden;
+    }
+
+    /* ── Intro screen ── */
+    #intro {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      padding: 24px;
+      min-height: 100dvh;
+      overflow-y: auto;
+    }
+    .sat-icon {
+      width: 96px; height: 96px;
+      border-radius: 50%;
+      border: 2px solid #22d3ee;
+      background: #0f2030;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 0 32px #22d3ee44;
+    }
+    #intro h1 { font-size: 28px; font-weight: 700; color: #22d3ee; }
+    #intro p.sub { font-size: 14px; color: #94a3b8; text-align: center; max-width: 320px; line-height: 1.6; }
+
+    .info-cards { width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 10px; }
+    .info-card {
+      display: flex; align-items: flex-start; gap: 12px;
+      background: #0f1f30; border-radius: 12px;
+      padding: 12px 16px; font-size: 13px; color: #cbd5e1;
+    }
+    .info-card span { font-size: 20px; line-height: 1; margin-top: 1px; }
+
+    .tip-box {
+      width: 100%; max-width: 360px;
+      background: #1a1200; border: 1px solid #d97706aa;
+      border-radius: 12px; padding: 12px 16px;
+      font-size: 12px; color: #fbbf24; line-height: 1.7;
+    }
+    .tip-box b { display: block; margin-bottom: 2px; font-size: 13px; }
+
+    #startBtn {
+      width: 100%; max-width: 360px;
+      padding: 16px; border-radius: 14px;
+      background: #22d3ee; color: #050a12;
+      font-size: 17px; font-weight: 700;
+      border: none; cursor: pointer;
+      box-shadow: 0 0 24px #22d3ee44;
+      transition: background 0.15s;
+    }
+    #startBtn:active { background: #06b6d4; }
+
+    .fine-print { font-size: 11px; color: #334155; text-align: center; max-width: 280px; line-height: 1.5; }
+
+    /* ── Loading / Error ── */
+    #loading, #errScreen {
+      display: none;
+      flex-direction: column; align-items: center; justify-content: center;
+      gap: 20px; min-height: 100dvh; padding: 24px; text-align: center;
+    }
+    .spinner {
+      width: 56px; height: 56px;
+      border: 4px solid #22d3ee; border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #loading p { color: #22d3ee; font-size: 17px; font-weight: 600; }
+    #loading small { color: #475569; font-size: 13px; }
+    #errScreen .err-icon { font-size: 48px; }
+    #errMsg { color: #f87171; font-size: 15px; max-width: 300px; line-height: 1.5; }
+    #retryBtn {
+      padding: 12px 32px; border-radius: 12px;
+      background: #1e3a4a; color: #22d3ee;
+      font-size: 15px; font-weight: 600; border: 1px solid #22d3ee44;
+      cursor: pointer;
+    }
+
+    /* ── AR View ── */
+    #arView {
+      display: none;
+      position: fixed; inset: 0; z-index: 100;
+      flex-direction: column;
+      background: #000;
+    }
+
+    #cameraWrap {
+      position: relative;
+      flex: 1;
+      overflow: hidden;
+    }
+    #video {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+    }
+    #overlay {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      cursor: crosshair;
+      touch-action: manipulation;
+    }
+
+    /* Top status bar */
+    .status-bar {
+      position: absolute; top: 12px; left: 12px;
+      display: flex; flex-wrap: wrap; gap: 6px;
+      pointer-events: none;
+    }
+    .badge {
+      padding: 3px 9px; border-radius: 99px;
+      font-size: 11px; font-family: monospace; font-weight: 600;
+      border: 1px solid;
+    }
+    .badge-green  { background: #052e1699; color: #4ade80; border-color: #16a34a55; }
+    .badge-gray   { background: #11182799; color: #64748b; border-color: #33415555; }
+    .badge-blue   { background: #0c1a3399; color: #60a5fa; border-color: #1d4ed855; }
+    .badge-yellow { background: #1a110099; color: #fbbf24; border-color: #d9770655; }
+
+    /* Top-right controls */
+    .top-right {
+      position: absolute; top: 12px; right: 12px;
+      display: flex; gap: 8px;
+    }
+    .icon-btn {
+      width: 36px; height: 36px;
+      background: rgba(0,0,0,0.55); border-radius: 50%;
+      border: none; color: #fff;
+      font-size: 16px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s;
+    }
+    .icon-btn:active { background: rgba(255,255,255,0.15); }
+
+    /* Location text */
+    #locText {
+      position: absolute; bottom: 10px; left: 10px;
+      font-size: 10px; color: rgba(255,255,255,0.45);
+      font-family: monospace;
+      background: rgba(0,0,0,0.35); padding: 2px 8px; border-radius: 6px;
+      pointer-events: none;
+    }
+
+    /* No-compass tip */
+    #compassTip {
+      position: absolute; inset-x: 16px; bottom: 16px;
+      background: rgba(26,17,0,0.85); border: 1px solid #d9770677;
+      border-radius: 12px; padding: 10px 14px;
+      font-size: 12px; color: #fbbf24; text-align: center;
+      pointer-events: none; display: none;
+    }
+
+    /* ── Bottom satellite list ── */
+    #satList {
+      background: rgba(10,15,25,0.96);
+      border-top: 1px solid #1e293b;
+      max-height: 176px;
+      overflow-y: auto;
+    }
+    #satList .empty {
+      text-align: center; color: #334155;
+      font-size: 12px; padding: 16px;
+    }
+    .sat-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 16px;
+      border-bottom: 1px solid #0f172a;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    .sat-row:active { background: #1e293b; }
+    .sat-dot {
+      width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+    }
+    .sat-name { flex: 1; font-size: 13px; font-weight: 500; color: #f1f5f9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sat-el { font-size: 11px; font-family: monospace; color: #94a3b8; flex-shrink: 0; }
+    .sat-az { font-size: 11px; font-family: monospace; color: #64748b; flex-shrink: 0; }
+
+    /* ── Satellite detail panel ── */
+    #detailPanel {
+      display: none;
+      position: absolute;
+      left: 12px; right: 12px;
+      background: rgba(15,20,35,0.97);
+      border: 1px solid #1e3a5a;
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+      z-index: 10;
+    }
+    .detail-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+    .detail-name { font-size: 15px; font-weight: 700; color: #f1f5f9; line-height: 1.3; }
+    .detail-sub  { font-size: 11px; color: #64748b; margin-top: 2px; }
+    .close-btn   { background: none; border: none; color: #64748b; font-size: 20px; cursor: pointer; line-height: 1; padding: 2px; }
+    .detail-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .stat-box { background: #1e293b; border-radius: 10px; padding: 8px 10px; text-align: center; }
+    .stat-label { font-size: 10px; color: #64748b; margin-bottom: 2px; }
+    .stat-val   { font-size: 14px; font-weight: 700; font-family: monospace; color: #f1f5f9; }
+    .detail-note { font-size: 11px; color: #475569; margin-top: 10px; line-height: 1.5; }
+
+    /* ── Settings panel ── */
+    #settings {
+      display: none;
+      position: absolute; inset: 0;
+      background: rgba(5,10,18,0.98);
+      z-index: 20;
+      flex-direction: column;
+    }
+    .settings-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid #1e293b;
+    }
+    .settings-header h2 { font-size: 17px; font-weight: 700; }
+    .settings-body { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 24px; }
+    .setting-group label { display: block; font-size: 13px; color: #94a3b8; font-weight: 600; margin-bottom: 6px; }
+    .setting-group label span { color: #22d3ee; }
+    .setting-group input[type=range] { width: 100%; accent-color: #22d3ee; }
+    .setting-note { font-size: 11px; color: #475569; margin-top: 6px; line-height: 1.5; }
+    .reset-link { font-size: 11px; color: #475569; text-decoration: underline; cursor: pointer; background: none; border: none; margin-top: 4px; }
+    .compass-status { background: #0f1f30; border-radius: 10px; padding: 12px 14px; font-size: 12px; }
+    .compass-status p { color: #94a3b8; }
+    .compass-status .good { color: #4ade80; }
+    .compass-status .warn { color: #fbbf24; }
+    .how-to-cal { background: #0a1520; border-radius: 10px; padding: 12px 14px; font-size: 11px; color: #475569; line-height: 1.7; }
+    .how-to-cal b { color: #64748b; display: block; margin-bottom: 2px; }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════ INTRO ══════════════════ -->
+<div id="intro">
+  <div class="sat-icon">
+    <svg viewBox="0 0 48 48" width="60" height="60" fill="none">
+      <circle cx="24" cy="24" r="10" stroke="#22d3ee" stroke-width="2"/>
+      <ellipse cx="24" cy="24" rx="22" ry="8" stroke="#22d3ee" stroke-width="1.5" stroke-dasharray="3 3"/>
+      <ellipse cx="24" cy="24" rx="22" ry="8" stroke="#22d3ee" stroke-width="1.5" stroke-dasharray="3 3" transform="rotate(60 24 24)"/>
+      <ellipse cx="24" cy="24" rx="22" ry="8" stroke="#22d3ee" stroke-width="1.5" stroke-dasharray="3 3" transform="rotate(120 24 24)"/>
+      <circle cx="24" cy="2"  r="2.5" fill="#22d3ee"/>
+      <circle cx="42" cy="30" r="2"   fill="#ff6b6b"/>
+      <circle cx="8"  cy="32" r="2"   fill="#ffeaa7"/>
+    </svg>
+  </div>
+
+  <div style="text-align:center">
+    <h1>Satellite Finder</h1>
+    <p class="sub" style="margin-top:8px">
+      Point your camera at the sky to see the exact positions of satellites in real time.
+    </p>
+  </div>
+
+  <div class="info-cards">
+    <div class="info-card"><span>📡</span><div>GEO satellites — Bell TV, Shaw, DIRECTV, GOES weather (always in the same spot)</div></div>
+    <div class="info-card"><span>🛸</span><div>LEO satellites — ISS, Tiangong, other stations (live tracking)</div></div>
+    <div class="info-card"><span>🧭</span><div>Uses your compass, GPS, and rear camera for an AR overlay</div></div>
+  </div>
+
+  <div class="tip-box">
+    <b>Tips for best accuracy</b>
+    Hold phone in <b>portrait mode</b> and tilt back to point at the sky.<br>
+    Stay away from metal &amp; buildings for a clean compass reading.<br>
+    From Canada/USA, GEO sats are always in the <b>southern sky</b>.
+  </div>
+
+  <button id="startBtn" onclick="startApp()">Launch Camera View</button>
+
+  <p class="fine-print">Requires camera, GPS &amp; motion sensor permissions.<br>Works best on a mobile browser served over HTTPS.</p>
+</div>
+
+<!-- ══════════════════ LOADING ══════════════════ -->
+<div id="loading">
+  <div class="spinner"></div>
+  <p>Starting up…</p>
+  <small>Requesting camera, GPS &amp; compass</small>
+</div>
+
+<!-- ══════════════════ ERROR ══════════════════ -->
+<div id="errScreen">
+  <div class="err-icon">⚠️</div>
+  <p id="errMsg">Something went wrong.</p>
+  <button id="retryBtn" onclick="show('intro')">Go Back</button>
+</div>
+
+<!-- ══════════════════ AR VIEW ══════════════════ -->
+<div id="arView">
+  <div id="cameraWrap">
+    <video id="video" playsinline muted autoplay></video>
+    <canvas id="overlay"></canvas>
+
+    <!-- Status badges -->
+    <div class="status-bar">
+      <span id="gpsBadge"     class="badge badge-gray">GPS…</span>
+      <span id="compassBadge" class="badge badge-gray">Compass…</span>
+      <span id="leoBadge"     class="badge badge-blue" style="display:none"></span>
+    </div>
+
+    <!-- Top-right buttons -->
+    <div class="top-right">
+      <button class="icon-btn" title="Settings"  onclick="toggleSettings()">⚙</button>
+      <button class="icon-btn" title="Close"     onclick="closeAR()">✕</button>
+    </div>
+
+    <!-- Location -->
+    <div id="locText"></div>
+
+    <!-- No compass tip -->
+    <div id="compassTip">Waiting for compass — tilt and rotate your phone to calibrate it.</div>
+
+    <!-- Satellite detail panel (positioned from JS) -->
+    <div id="detailPanel">
+      <div class="detail-header">
+        <div>
+          <div class="detail-name" id="dName"></div>
+          <div class="detail-sub"  id="dSub"></div>
+        </div>
+        <button class="close-btn" onclick="closeDetail()">✕</button>
+      </div>
+      <div class="detail-stats">
+        <div class="stat-box"><div class="stat-label">Elevation</div><div class="stat-val" id="dEl">—</div></div>
+        <div class="stat-box"><div class="stat-label">Azimuth</div>  <div class="stat-val" id="dAz">—</div></div>
+        <div class="stat-box"><div class="stat-label">Range</div>    <div class="stat-val" id="dRange">—</div></div>
+      </div>
+      <div class="detail-note" id="dNote"></div>
+    </div>
+
+    <!-- Settings panel -->
+    <div id="settings">
+      <div class="settings-header">
+        <h2>Settings</h2>
+        <button class="icon-btn" onclick="toggleSettings()">✕</button>
+      </div>
+      <div class="settings-body">
+        <div class="setting-group">
+          <label>Camera Field of View: <span id="fovLabel">70</span>°</label>
+          <input type="range" id="fovSlider" min="40" max="120" value="70" oninput="fov=+this.value;document.getElementById('fovLabel').textContent=this.value">
+          <p class="setting-note">Adjust to match your camera. Most phones: 60–80°.</p>
+        </div>
+
+        <div class="setting-group">
+          <label>Compass Offset: <span id="offsetLabel">0</span>°</label>
+          <input type="range" id="offsetSlider" min="-45" max="45" value="0" oninput="compassOffset=+this.value;document.getElementById('offsetLabel').textContent=(this.value>0?'+':'')+this.value">
+          <button class="reset-link" onclick="resetOffset()">Reset to 0°</button>
+          <p class="setting-note">If satellites appear shifted left/right, fine-tune this until a known satellite lines up.</p>
+        </div>
+
+        <div class="compass-status">
+          <p>Compass mode: <span id="compassModeText" class="warn">waiting…</span></p>
+        </div>
+
+        <div class="how-to-cal">
+          <b>How to calibrate compass offset</b>
+          1. Find a clear view of the southern sky (from Canada/USA).<br>
+          2. Look up the azimuth of a GEO satellite for your location (e.g. Bell TV / Anik F1R at 107.3°W).<br>
+          3. Point your phone at it and adjust the offset slider until the label aligns.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom satellite list -->
+  <div id="satList">
+    <div class="empty" id="satListEmpty">Tilt phone toward the sky to see satellites</div>
+  </div>
+</div>
+
+<!-- satellite.js from CDN -->
+<script src="https://cdn.jsdelivr.net/npm/satellite.js@7/index.js"></script>
+
+<script>
+'use strict';
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function show(id) {
+  ['intro','loading','errScreen','arView'].forEach(s => {
+    const el = document.getElementById(s);
+    el.style.display = (s === id) ? (s === 'arView' ? 'flex' : 'flex') : 'none';
+  });
+}
+
+function showError(msg) {
+  document.getElementById('errMsg').textContent = msg;
+  show('errScreen');
+}
+
+// ── GEO Satellite Database ────────────────────────────────────────────────────
+
+const GEO_SATS = [
+  // Canadian TV
+  { name: 'Anik F1R (Bell/Shaw)', lon: -107.3, category: 'Canadian TV',  color: '#FF6B6B' },
+  { name: 'Anik F2 (Bell TV)',    lon: -111.1, category: 'Canadian TV',  color: '#FF6B6B' },
+  { name: 'Anik F3 (Shaw)',       lon: -118.7, category: 'Canadian TV',  color: '#FF8C00' },
+  { name: 'Nimiq 4 (Shaw)',       lon:  -91.0, category: 'Canadian TV',  color: '#FF8C00' },
+  // US TV
+  { name: 'Galaxy 19 (FTA)',      lon:  -97.0, category: 'US TV',        color: '#4ECDC4' },
+  { name: 'SES-1',                lon: -101.0, category: 'US TV',        color: '#4ECDC4' },
+  { name: 'DIRECTV 10/12',        lon: -102.8, category: 'US TV',        color: '#45B7D1' },
+  { name: 'DIRECTV 7S',           lon: -119.0, category: 'US TV',        color: '#45B7D1' },
+  { name: 'Galaxy 15',            lon: -133.0, category: 'US TV',        color: '#96CEB4' },
+  { name: 'AMC-15',               lon: -105.0, category: 'US TV',        color: '#96CEB4' },
+  // Weather
+  { name: 'GOES-East (16)',       lon:  -75.2, category: 'Weather',      color: '#FFEAA7' },
+  { name: 'GOES-West (18)',       lon: -136.9, category: 'Weather',      color: '#FFEAA7' },
+  // Telecom
+  { name: 'SES-2',                lon:  -87.0, category: 'Telecom',      color: '#DDA0DD' },
+  { name: 'AMC-11',               lon: -131.0, category: 'Telecom',      color: '#DDA0DD' },
+  { name: 'Intelsat 11',          lon:  -43.1, category: 'Telecom',      color: '#FFA07A' },
+];
+
+// ── GEO Math (ECEF → ENU → Az/El) ────────────────────────────────────────────
+
+function geoAzEl(lat, lon, satLon) {
+  const d  = Math.PI / 180;
+  const RE = 6378.137, RS = RE + 35786;
+  const φ  = lat * d, λ = lon * d, λs = satLon * d;
+
+  const ox = RE * Math.cos(φ) * Math.cos(λ);
+  const oy = RE * Math.cos(φ) * Math.sin(λ);
+  const oz = RE * Math.sin(φ);
+
+  const sx = RS * Math.cos(λs), sy = RS * Math.sin(λs), sz = 0;
+
+  const dx = sx - ox, dy = sy - oy, dz = sz - oz;
+
+  const east  = -Math.sin(λ) * dx + Math.cos(λ) * dy;
+  const north = -Math.sin(φ)*Math.cos(λ)*dx - Math.sin(φ)*Math.sin(λ)*dy + Math.cos(φ)*dz;
+  const up    =  Math.cos(φ)*Math.cos(λ)*dx + Math.cos(φ)*Math.sin(λ)*dy + Math.sin(φ)*dz;
+
+  const el    = Math.atan2(up, Math.sqrt(east*east + north*north)) / d;
+  let   az    = Math.atan2(east, north) / d;
+  az = (az + 360) % 360;
+  const range = Math.sqrt(dx*dx + dy*dy + dz*dz);
+
+  return { az, el, range };
+}
+
+// ── TLE parser ────────────────────────────────────────────────────────────────
+
+function parseTle(text) {
+  const lines  = text.trim().split('\n').map(l => l.trim()).filter(Boolean);
+  const result = [];
+  for (let i = 0; i + 2 < lines.length; i += 3) {
+    if (lines[i+1].startsWith('1 ') && lines[i+2].startsWith('2 ')) {
+      const name = lines[i];
+      const upper = name.toUpperCase();
+      const color = upper.includes('ISS')      ? '#00FF88' :
+                    upper.includes('TIANGONG') ? '#FF88FF' : '#88AAFF';
+      result.push({ name, tle1: lines[i+1], tle2: lines[i+2], color });
+    }
+  }
+  return result;
+}
+
+// ── State ─────────────────────────────────────────────────────────────────────
+
+let observerPos   = null;   // { lat, lon, alt }
+let orientation   = { alpha: 0, beta: 90, gamma: 0 };
+let isAbsCompass  = false;
+let gotAbsolute   = false;
+let compassOffset = 0;
+let fov           = 70;
+let leoTles       = [];
+let allSatViews   = [];     // Computed satellite positions
+let animId        = null;
+let stream        = null;
+let prevW = 0, prevH = 0;
+
+// ── Compute all satellite positions ──────────────────────────────────────────
+
+function computeViews() {
+  if (!observerPos) return [];
+  const { lat, lon, alt } = observerPos;
+  const now   = new Date();
+  const views = [];
+
+  // GEO
+  for (const s of GEO_SATS) {
+    const { az, el, range } = geoAzEl(lat, lon, s.lon);
+    views.push({ name: s.name, az, el, range, category: s.category, color: s.color, type: 'GEO' });
+  }
+
+  // LEO (satellite.js SGP4)
+  if (typeof satellite !== 'undefined') {
+    for (const tle of leoTles) {
+      try {
+        const satrec = satellite.twoline2satrec(tle.tle1, tle.tle2);
+        const pv     = satellite.propagate(satrec, now);
+        if (!pv.position || pv.position === false) continue;
+        const gmst   = satellite.gstime(now);
+        const ecf    = satellite.eciToEcf(pv.position, gmst);
+        const obs    = {
+          latitude:  satellite.degreesToRadians(lat),
+          longitude: satellite.degreesToRadians(lon),
+          height:    (alt || 0) / 1000,
+        };
+        const look   = satellite.ecfToLookAngles(obs, ecf);
+        const az     = (satellite.radiansToDegrees(look.azimuth) + 360) % 360;
+        const el     = satellite.radiansToDegrees(look.elevation);
+        const range  = look.rangeSat || 0;
+        views.push({ name: tle.name, az, el, range, category: 'LEO', color: tle.color, type: 'LEO' });
+      } catch (_) {}
+    }
+  }
+
+  return views.sort((a, b) => b.el - a.el);
+}
+
+// ── Project az/el → canvas pixel ─────────────────────────────────────────────
+
+function project(satAz, satEl, heading, tilt, hFov, w, h) {
+  const vFov = hFov * (h / w);
+  let dAz = satAz - heading;
+  while (dAz >  180) dAz -= 360;
+  while (dAz < -180) dAz += 360;
+  const dEl = satEl - tilt;
+  if (Math.abs(dAz) > hFov/2 + 15 || Math.abs(dEl) > vFov/2 + 15) return null;
+  return {
+    x: w/2 + (dAz / (hFov/2)) * (w/2),
+    y: h/2 - (dEl / (vFov/2)) * (h/2),
+  };
+}
+
+// ── Draw compass ──────────────────────────────────────────────────────────────
+
+function drawCompass(ctx, heading, w, h) {
+  const cx = w - 58, cy = 68, r = 44;
+  ctx.save();
+
+  ctx.fillStyle = 'rgba(0,0,0,0.60)';
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.fill();
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  ['N','NE','E','SE','S','SW','W','NW'].forEach((lbl, i) => {
+    const angle = ((i*45) - heading) * Math.PI / 180;
+    const dist  = lbl.length === 1 ? r-11 : r-16;
+    ctx.fillStyle = lbl === 'N' ? '#FF4444' : lbl.length === 1 ? '#FFF' : 'rgba(255,255,255,0.4)';
+    ctx.font      = lbl.length === 1 ? 'bold 11px sans-serif' : '8px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(lbl, cx + Math.sin(angle)*dist, cy - Math.cos(angle)*dist);
+  });
+
+  ctx.fillStyle = '#FFF'; ctx.font = 'bold 10px monospace';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(Math.round(heading) + '°', cx, cy);
+  ctx.restore();
+}
+
+// ── Animation loop ────────────────────────────────────────────────────────────
+
+function animate() {
+  const canvas = document.getElementById('overlay');
+  const ctx    = canvas.getContext('2d');
+  const w0 = canvas.offsetWidth, h0 = canvas.offsetHeight;
+
+  if (w0 !== prevW || h0 !== prevH) {
+    canvas.width = w0; canvas.height = h0;
+    prevW = w0; prevH = h0;
+  }
+
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  const heading = (orientation.alpha + compassOffset + 360) % 360;
+  const tilt    = orientation.beta - 90; // 0=horizontal, 90=straight up
+
+  // Crosshair
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(w/2-22,h/2); ctx.lineTo(w/2+22,h/2);
+  ctx.moveTo(w/2,h/2-22); ctx.lineTo(w/2,h/2+22);
+  ctx.stroke(); ctx.restore();
+
+  // Horizon line
+  const hp = project(heading, 0, heading, tilt, fov, w, h);
+  if (hp) {
+    ctx.save();
+    ctx.globalAlpha = 0.35; ctx.strokeStyle = '#00FF88';
+    ctx.lineWidth = 1; ctx.setLineDash([10,10]);
+    ctx.beginPath(); ctx.moveTo(0, hp.y); ctx.lineTo(w, hp.y); ctx.stroke();
+    ctx.setLineDash([]); ctx.globalAlpha = 0.55;
+    ctx.fillStyle = '#00FF88'; ctx.font = '10px monospace';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+    ctx.fillText('HORIZON', 8, hp.y - 2);
+    ctx.restore();
+  }
+
+  // Tilt bar (left edge)
+  const tc = Math.max(-90, Math.min(90, tilt));
+  const ty = h/2 - (tc/90) * (h/2 - 40);
+  ctx.save();
+  ctx.globalAlpha = 0.55;
+  ctx.strokeStyle = 'rgba(255,255,255,0.20)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(22,40); ctx.lineTo(22,h-40); ctx.stroke();
+  ctx.fillStyle = '#FFF';
+  ctx.beginPath(); ctx.arc(22, ty, 5, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.font = '9px monospace';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(tc.toFixed(0)+'°', 22, ty+16);
+  ctx.restore();
+
+  // Satellites
+  const inFrame = [];
+  for (const sat of allSatViews) {
+    const pos = project(sat.az, sat.el, heading, tilt, fov, w, h);
+    if (!pos) continue;
+    const {x, y} = pos;
+    if (x < -50 || x > w+50 || y < -50 || y > h+50) continue;
+    if (sat.el > 0) inFrame.push(sat);
+
+    const opacity = sat.el > 0 ? 0.95 : 0.28;
+    const radius  = sat.type === 'LEO' ? 15 : 10;
+    const glow    = sat.el > 0 ? 18 : 5;
+
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    ctx.shadowColor = sat.color; ctx.shadowBlur = glow;
+    ctx.strokeStyle = sat.color; ctx.lineWidth = sat.el > 0 ? 2.5 : 1.5;
+    ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI*2); ctx.stroke();
+
+    ctx.fillStyle = sat.color; ctx.shadowBlur = 0;
+    ctx.beginPath(); ctx.arc(x, y, sat.el > 0 ? 5 : 3, 0, Math.PI*2); ctx.fill();
+
+    if (sat.type === 'LEO' && sat.el > 0) {
+      ctx.strokeStyle = sat.color; ctx.lineWidth = 1;
+      const t = 5;
+      ctx.beginPath();
+      ctx.moveTo(x-radius-t,y); ctx.lineTo(x-radius+2,y);
+      ctx.moveTo(x+radius-2,y); ctx.lineTo(x+radius+t,y);
+      ctx.moveTo(x,y-radius-t); ctx.lineTo(x,y-radius+2);
+      ctx.moveTo(x,y+radius-2); ctx.lineTo(x,y+radius+t);
+      ctx.stroke();
+    }
+
+    if (sat.el > -20) {
+      ctx.shadowColor = '#000'; ctx.shadowBlur = 6;
+      ctx.fillStyle = '#FFF'; ctx.font = 'bold 12px monospace';
+      ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.fillText(sat.name, x+radius+7, y-7);
+      ctx.fillStyle = sat.color; ctx.font = '10px monospace';
+      ctx.fillText('El '+sat.el.toFixed(1)+'°  Az '+Math.round(sat.az)+'°', x+radius+7, y+8);
+    }
+    ctx.restore();
+  }
+
+  drawCompass(ctx, heading, w, h);
+  updateSatList(inFrame.slice(0, 12));
+
+  animId = requestAnimationFrame(animate);
+}
+
+// ── Satellite list ────────────────────────────────────────────────────────────
+
+function updateSatList(sats) {
+  const list  = document.getElementById('satList');
+  const empty = document.getElementById('satListEmpty');
+
+  // Remove old rows (keep the empty div)
+  [...list.querySelectorAll('.sat-row')].forEach(r => r.remove());
+
+  if (sats.length === 0) {
+    empty.style.display = 'block';
+    empty.textContent = isAbsCompass
+      ? 'No satellites in view — tilt phone toward sky'
+      : 'Waiting for compass…';
+    return;
+  }
+  empty.style.display = 'none';
+
+  for (const sat of sats) {
+    const row = document.createElement('div');
+    row.className = 'sat-row';
+    row.innerHTML = `
+      <div class="sat-dot" style="background:${sat.color};box-shadow:0 0 6px ${sat.color}"></div>
+      <div class="sat-name">${sat.name}</div>
+      <div class="sat-el">El ${sat.el.toFixed(1)}°</div>
+      <div class="sat-az">Az ${Math.round(sat.az)}°</div>
+    `;
+    row.addEventListener('click', () => showDetail(sat));
+    list.appendChild(row);
+  }
+}
+
+// ── Detail panel ──────────────────────────────────────────────────────────────
+
+function showDetail(sat) {
+  const panel = document.getElementById('detailPanel');
+  document.getElementById('dName').textContent  = sat.name;
+  document.getElementById('dSub').textContent   = sat.category + ' · ' + (sat.type === 'GEO' ? 'Geostationary' : 'Low Earth Orbit');
+  document.getElementById('dEl').textContent    = sat.el.toFixed(2) + '°';
+  document.getElementById('dAz').textContent    = sat.az.toFixed(2) + '°';
+  const r = sat.range;
+  document.getElementById('dRange').textContent = r > 999 ? (r/1000).toFixed(1)+'k km' : Math.round(r)+' km';
+  document.getElementById('dNote').textContent  = sat.type === 'GEO'
+    ? 'Geostationary — stays fixed in the sky. Once your dish is aligned, it stays locked.'
+    : 'Low Earth Orbit — moves across the sky. Positions update every second.';
+
+  // Position above the list
+  const listH = document.getElementById('satList').offsetHeight;
+  panel.style.bottom = (listH + 8) + 'px';
+  panel.style.display = 'block';
+}
+
+function closeDetail() {
+  document.getElementById('detailPanel').style.display = 'none';
+}
+
+// ── Settings ──────────────────────────────────────────────────────────────────
+
+function toggleSettings() {
+  const s = document.getElementById('settings');
+  s.style.display = s.style.display === 'flex' ? 'none' : 'flex';
+}
+
+function resetOffset() {
+  compassOffset = 0;
+  document.getElementById('offsetSlider').value = 0;
+  document.getElementById('offsetLabel').textContent = '0';
+}
+
+// ── Start app ─────────────────────────────────────────────────────────────────
+
+async function startApp() {
+  show('loading');
+
+  try {
+    // Camera
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1920 } },
+      audio: false,
+    });
+    const video = document.getElementById('video');
+    video.srcObject = stream;
+    await video.play().catch(() => {});
+
+    // iOS orientation permission
+    if (typeof DeviceOrientationEvent !== 'undefined' &&
+        typeof DeviceOrientationEvent.requestPermission === 'function') {
+      const perm = await DeviceOrientationEvent.requestPermission();
+      if (perm !== 'granted') throw new Error('Motion sensor access denied. Please tap "Allow" when prompted.');
+    }
+
+    // Orientation listeners
+    function handleOrient(e, isAbsolute) {
+      if (isAbsolute) gotAbsolute = true;
+      if (!isAbsolute && gotAbsolute) return;
+      if (e.alpha === null) return;
+      orientation = { alpha: e.alpha, beta: e.beta ?? 90, gamma: e.gamma ?? 0 };
+      if (!isAbsCompass) {
+        isAbsCompass = isAbsolute || e.absolute === true;
+        document.getElementById('compassBadge').className = 'badge badge-green';
+        document.getElementById('compassBadge').textContent = isAbsCompass ? 'Compass ✓' : 'Compass ~';
+        document.getElementById('compassModeText').textContent = isAbsCompass
+          ? 'Absolute (north-referenced) ✓'
+          : 'Relative — use offset to calibrate';
+        document.getElementById('compassModeText').className = isAbsCompass ? 'good' : 'warn';
+        document.getElementById('compassTip').style.display = 'none';
+      }
+    }
+    window.addEventListener('deviceorientationabsolute', e => handleOrient(e, true));
+    window.addEventListener('deviceorientation',         e => handleOrient(e, false));
+
+    // Show compass tip after 3 s if still no compass
+    setTimeout(() => {
+      if (!isAbsCompass) document.getElementById('compassTip').style.display = 'block';
+    }, 3000);
+
+    // GPS
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        observerPos = { lat: pos.coords.latitude, lon: pos.coords.longitude, alt: pos.coords.altitude || 0 };
+        document.getElementById('gpsBadge').className = 'badge badge-green';
+        document.getElementById('gpsBadge').textContent = 'GPS ✓';
+        document.getElementById('locText').textContent =
+          pos.coords.latitude.toFixed(4) + '°, ' + pos.coords.longitude.toFixed(4) + '°';
+      },
+      () => {
+        observerPos = { lat: 43.7001, lon: -79.4163, alt: 0 }; // Toronto fallback
+        document.getElementById('gpsBadge').className = 'badge badge-yellow';
+        document.getElementById('gpsBadge').textContent = 'GPS ✗';
+        document.getElementById('locText').textContent = 'GPS unavailable — using Toronto default';
+      },
+      { enableHighAccuracy: true, timeout: 15000 }
+    );
+    navigator.geolocation.watchPosition(
+      pos => {
+        observerPos = { lat: pos.coords.latitude, lon: pos.coords.longitude, alt: pos.coords.altitude || 0 };
+        document.getElementById('gpsBadge').className = 'badge badge-green';
+        document.getElementById('gpsBadge').textContent = 'GPS ✓';
+        document.getElementById('locText').textContent =
+          pos.coords.latitude.toFixed(4) + '°, ' + pos.coords.longitude.toFixed(4) + '°';
+      },
+      undefined,
+      { enableHighAccuracy: true }
+    );
+
+    // Fetch LEO TLEs
+    fetch('https://celestrak.org/SATCAT/GP.php?GROUP=stations&FORMAT=TLE', { cache: 'no-cache' })
+      .then(r => r.ok ? r.text() : '')
+      .then(text => {
+        if (!text) return;
+        leoTles = parseTle(text);
+        if (leoTles.length > 0) {
+          const b = document.getElementById('leoBadge');
+          b.style.display = 'inline';
+          b.textContent = leoTles.length + ' LEO';
+        }
+      })
+      .catch(() => {}); // App still works without LEO data
+
+    // Start
+    show('arView');
+    allSatViews = computeViews();
+    setInterval(() => { allSatViews = computeViews(); }, 1000);
+    animId = requestAnimationFrame(animate);
+
+  } catch (err) {
+    showError(err.message || 'Initialization failed. Check permissions and try again.');
+  }
+}
+
+// ── Close AR ──────────────────────────────────────────────────────────────────
+
+function closeAR() {
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+  if (animId) { cancelAnimationFrame(animId); animId = null; }
+  show('intro');
+}
+
+// ── Initial screen ────────────────────────────────────────────────────────────
+show('intro');
+</script>
+</body>
+</html>
