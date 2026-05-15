@@ -107,25 +107,29 @@
     #video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
     #overlay { position: absolute; inset: 0; width: 100%; height: 100%; }
 
-    /* Target HUD */
-    #targetHud {
-      position: absolute; top: 0; left: 0; right: 0;
-      padding: 10px 14px 8px;
-      background: linear-gradient(rgba(0,0,0,0.75), transparent);
-      pointer-events: none;
+    /* AR top bar — replaces floating HUD + buttons */
+    #arTopBar {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 12px;
+      padding-top: calc(10px + env(safe-area-inset-top, 0px));
+      background: rgba(13,13,18,0.96);
+      border-bottom: 1px solid #27272c;
+      flex-shrink: 0;
     }
-    #hudName { font-size: 12px; font-weight: 700; color: #f0952a; margin-bottom: 3px; text-shadow: 0 1px 4px #000; }
+    #arHudLeft { flex: 1; min-width: 0; }
+    #hudName { font-size: 12px; font-weight: 600; color: #f0952a; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .hud-stats { display: flex; gap: 18px; }
     .hud-stat  { display: flex; align-items: baseline; gap: 3px; }
     .hud-label { font-size: 10px; color: #6b6b72; font-family: monospace; }
-    .hud-val   { font-size: 20px; font-weight: 700; font-family: monospace; color: #fff; text-shadow: 0 1px 4px #000; }
+    .hud-val   { font-size: 20px; font-weight: 700; font-family: monospace; color: #ece7e0; }
     .hud-val.close  { color: #4ade80; }
     .hud-val.medium { color: #fbbf24; }
     .hud-val.far    { color: #f87171; }
+    .ar-btns { display: flex; gap: 6px; flex-shrink: 0; }
 
-    /* Status badges */
+    /* Status badges — now float over camera, not over the top bar */
     .status-bar {
-      position: absolute; top: 64px; left: 12px;
+      position: absolute; top: 8px; left: 8px;
       display: flex; flex-wrap: wrap; gap: 6px; pointer-events: none;
     }
     .badge { padding: 3px 9px; border-radius: 99px; font-size: 11px; font-family: monospace; font-weight: 600; border: 1px solid; }
@@ -133,11 +137,9 @@
     .badge-gray   { background: #18181b99; color: #6b6b72; border-color: #3a3a4255; }
     .badge-yellow { background: #1a110099; color: #fbbf24; border-color: #d9770655; }
 
-    /* Top-right */
-    .top-right { position: absolute; top: 64px; right: 12px; display: flex; gap: 8px; }
     .icon-btn {
-      width: 36px; height: 36px; background: rgba(0,0,0,0.55); border-radius: 50%;
-      border: none; color: #fff; font-size: 16px; cursor: pointer;
+      width: 36px; height: 36px; background: rgba(255,255,255,0.07); border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.1); color: #ece7e0; font-size: 16px; cursor: pointer;
       display: flex; align-items: center; justify-content: center;
     }
 
@@ -284,12 +286,10 @@
 
 <!-- ══════════════════ AR VIEW ══════════════════ -->
 <div id="arView" style="display:none; position:fixed; inset:0; z-index:100; flex-direction:column; background:#000;">
-  <div id="cameraWrap" style="position:relative; flex:1; overflow:hidden;">
-    <video id="video" playsinline muted autoplay style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;"></video>
-    <canvas id="overlay" style="position:absolute;inset:0;width:100%;height:100%;"></canvas>
 
-    <!-- Target HUD -->
-    <div id="targetHud">
+  <!-- Top bar: satellite info + nav buttons — no overlap with camera -->
+  <div id="arTopBar">
+    <div id="arHudLeft">
       <div id="hudName"></div>
       <div class="hud-stats">
         <div class="hud-stat"><span class="hud-label">AZ</span><span id="hudAz" class="hud-val">—</span></div>
@@ -297,26 +297,29 @@
         <div class="hud-stat"><span class="hud-label">OFF</span><span id="hudOff" class="hud-val">—</span></div>
       </div>
     </div>
-
-    <!-- Badges -->
-    <div class="status-bar">
-      <span id="gpsBadge"     class="badge badge-gray">GPS…</span>
-      <span id="compassBadge" class="badge badge-gray">Compass…</span>
-      <span id="leoBadge"     class="badge" style="display:none; background:#0c1a3399; color:#60a5fa; border-color:#1d4ed855;"></span>
-    </div>
-
-    <!-- Top-right -->
-    <div class="top-right">
+    <div class="ar-btns">
       <button class="icon-btn" title="Change satellite" onclick="goBackToIntro()">⊞</button>
       <button class="icon-btn" title="Settings" onclick="toggleSettings()">⚙</button>
       <button class="icon-btn" title="Close" onclick="closeAR()">✕</button>
+    </div>
+  </div>
+
+  <div id="cameraWrap" style="position:relative; flex:1; overflow:hidden;">
+    <video id="video" playsinline muted autoplay style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;"></video>
+    <canvas id="overlay" style="position:absolute;inset:0;width:100%;height:100%;"></canvas>
+
+    <!-- Badges float over camera only -->
+    <div class="status-bar">
+      <span id="gpsBadge"     class="badge badge-gray">GPS…</span>
+      <span id="compassBadge" class="badge badge-gray">Compass…</span>
+      <span id="leoBadge"     class="badge" style="display:none; background:#1a100099; color:#f0952a; border-color:#f0952a55;"></span>
     </div>
 
     <div id="locText"></div>
     <div id="compassTip" style="display:none">Tilt and rotate your phone to calibrate the compass</div>
 
     <!-- GPS denied panel -->
-    <div id="gpsPanel" style="display:none; position:absolute; inset:0; z-index:5; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:20px; background:rgba(5,10,18,0.96); overflow-y:auto;">
+    <div id="gpsPanel" style="display:none; position:absolute; inset:0; z-index:5; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:20px; background:rgba(13,13,18,0.97); overflow-y:auto;">
       <p class="gps-title">📍 Location Needed</p>
       <p class="gps-hint">GPS was denied. Go to iOS Settings → Chrome → Location → "While Using App", then tap Retry. Or pick your city:</p>
       <div class="city-grid">
@@ -339,7 +342,7 @@
     </div>
 
     <!-- Settings panel -->
-    <div id="settings" style="display:none; position:absolute; inset:0; z-index:20; background:rgba(5,10,18,0.98); flex-direction:column;">
+    <div id="settings" style="display:none; position:absolute; inset:0; z-index:20; background:rgba(13,13,18,0.99); flex-direction:column;">
       <div class="settings-header">
         <h2>Settings</h2>
         <button class="icon-btn" onclick="toggleSettings()">✕</button>
@@ -633,19 +636,19 @@ function drawEdgeArrow(ctx, dAz, dEl, w, h, color) {
 // ── Compass rose ──────────────────────────────────────────────────────────────
 
 function drawCompass(ctx, heading, w, h) {
-  const cx = w - 50, cy = 54, r = 34;
+  const r = 30, cx = w - r - 12, cy = h - r - 20;
   ctx.save();
-  ctx.fillStyle = 'rgba(0,0,0,0.65)';
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
   ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.lineWidth = 1; ctx.stroke();
   ['N','E','S','W'].forEach((l, i) => {
     const a = (i*90 - heading) * Math.PI / 180;
-    ctx.fillStyle = l === 'N' ? '#FF4444' : '#fff';
+    ctx.fillStyle = l === 'N' ? '#f0952a' : 'rgba(255,255,255,0.85)';
     ctx.font = 'bold 10px sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(l, cx + Math.sin(a)*(r-11), cy - Math.cos(a)*(r-11));
+    ctx.fillText(l, cx + Math.sin(a)*(r-10), cy - Math.cos(a)*(r-10));
   });
-  ctx.fillStyle = '#fff'; ctx.font = 'bold 9px monospace';
+  ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.font = 'bold 8px monospace';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText(Math.round(heading)+'°', cx, cy);
   ctx.restore();
