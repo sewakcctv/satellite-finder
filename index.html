@@ -238,6 +238,43 @@
     .compass-status .warn { color: #fbbf24; }
     .how-to-cal { background: #0a1520; border-radius: 10px; padding: 12px 14px; font-size: 11px; color: #475569; line-height: 1.7; }
     .how-to-cal b { color: #64748b; display: block; margin-bottom: 2px; }
+
+    /* ── Satellite toggles ── */
+    .toggle-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 7px 0; border-bottom: 1px solid #0f172a;
+      font-size: 13px; color: #cbd5e1;
+    }
+    .toggle-row:last-child { border-bottom: none; }
+    .toggle-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; margin-right: 8px; }
+    .toggle-name { flex: 1; }
+    .ts { position: relative; width: 38px; height: 22px; flex-shrink: 0; }
+    .ts input { opacity: 0; width: 0; height: 0; }
+    .ts-track {
+      position: absolute; inset: 0; background: #334155;
+      border-radius: 22px; cursor: pointer; transition: background 0.2s;
+    }
+    .ts-track::before {
+      content: ''; position: absolute;
+      width: 16px; height: 16px; left: 3px; top: 3px;
+      background: #fff; border-radius: 50%; transition: transform 0.2s;
+    }
+    .ts input:checked + .ts-track { background: #22d3ee; }
+    .ts input:checked + .ts-track::before { transform: translateX(16px); }
+    .toggle-cat-label {
+      font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase;
+      letter-spacing: 0.06em; padding: 10px 0 4px;
+    }
+
+    /* GPS retry banner */
+    #gpsBanner {
+      display: none;
+      position: absolute; bottom: 10px; right: 10px;
+      background: rgba(26,17,0,0.9); border: 1px solid #d9770677;
+      border-radius: 10px; padding: 8px 12px;
+      font-size: 12px; color: #fbbf24;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -321,6 +358,9 @@
     <!-- No compass tip -->
     <div id="compassTip">Waiting for compass — tilt and rotate your phone to calibrate it.</div>
 
+    <!-- GPS retry banner -->
+    <div id="gpsBanner" onclick="retryGps()">📍 GPS unavailable — tap to retry</div>
+
     <!-- Satellite detail panel (positioned from JS) -->
     <div id="detailPanel">
       <div class="detail-header">
@@ -368,6 +408,11 @@
           2. Look up the azimuth of a GEO satellite for your location (e.g. Bell TV / Anik F1R at 107.3°W).<br>
           3. Point your phone at it and adjust the offset slider until the label aligns.
         </div>
+
+        <div class="setting-group">
+          <label>Visible Satellites</label>
+          <div id="satToggles"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -414,10 +459,11 @@ function isInAppBrowser() {
 
 const GEO_SATS = [
   // Canadian TV
-  { name: 'Anik F1R (Bell/Shaw)', lon: -107.3, category: 'Canadian TV',  color: '#FF6B6B' },
-  { name: 'Anik F2 (Bell TV)',    lon: -111.1, category: 'Canadian TV',  color: '#FF6B6B' },
-  { name: 'Anik F3 (Shaw)',       lon: -118.7, category: 'Canadian TV',  color: '#FF8C00' },
-  { name: 'Nimiq 4 (Shaw)',       lon:  -91.0, category: 'Canadian TV',  color: '#FF8C00' },
+  { name: 'Nimiq 6 / Galaxy 17 (Bell TV)', lon:  -91.0, category: 'Canadian TV',  color: '#FF6B6B' },
+  { name: 'Anik F1R (Bell/Shaw)',           lon: -107.3, category: 'Canadian TV',  color: '#FF6B6B' },
+  { name: 'Anik F2 (Bell TV)',              lon: -111.1, category: 'Canadian TV',  color: '#FF6B6B' },
+  { name: 'Anik F3 (Shaw)',                 lon: -118.7, category: 'Canadian TV',  color: '#FF8C00' },
+  { name: 'Nimiq 4 (Bell TV)',              lon:  -82.0, category: 'Canadian TV',  color: '#FF6B6B' },
   // US TV
   { name: 'Galaxy 19 (FTA)',      lon:  -97.0, category: 'US TV',        color: '#4ECDC4' },
   { name: 'SES-1',                lon: -101.0, category: 'US TV',        color: '#4ECDC4' },
@@ -491,6 +537,8 @@ let allSatViews   = [];     // Computed satellite positions
 let animId        = null;
 let stream        = null;
 let prevW = 0, prevH = 0;
+let hiddenSatNames = new Set();
+let showLEO = true;
 
 // ── Compute all satellite positions ──────────────────────────────────────────
 
@@ -502,12 +550,13 @@ function computeViews() {
 
   // GEO
   for (const s of GEO_SATS) {
+    if (hiddenSatNames.has(s.name)) continue;
     const { az, el, range } = geoAzEl(lat, lon, s.lon);
     views.push({ name: s.name, az, el, range, category: s.category, color: s.color, type: 'GEO' });
   }
 
   // LEO (satellite.js SGP4)
-  if (typeof satellite !== 'undefined') {
+  if (showLEO && typeof satellite !== 'undefined') {
     for (const tle of leoTles) {
       try {
         const satrec = satellite.twoline2satrec(tle.tle1, tle.tle2);
@@ -739,13 +788,89 @@ function closeDetail() {
 
 function toggleSettings() {
   const s = document.getElementById('settings');
-  s.style.display = s.style.display === 'flex' ? 'none' : 'flex';
+  const opening = s.style.display !== 'flex';
+  s.style.display = opening ? 'flex' : 'none';
+  if (opening) buildSatToggles();
 }
 
 function resetOffset() {
   compassOffset = 0;
   document.getElementById('offsetSlider').value = 0;
   document.getElementById('offsetLabel').textContent = '0';
+}
+
+function buildSatToggles() {
+  const container = document.getElementById('satToggles');
+  if (!container) return;
+
+  // Group GEO sats by category
+  const cats = {};
+  for (const s of GEO_SATS) {
+    if (!cats[s.category]) cats[s.category] = [];
+    cats[s.category].push(s);
+  }
+
+  let html = '';
+  for (const [cat, sats] of Object.entries(cats)) {
+    html += `<div class="toggle-cat-label">${cat}</div>`;
+    for (const s of sats) {
+      const checked = !hiddenSatNames.has(s.name) ? 'checked' : '';
+      html += `<label class="toggle-row">
+        <span class="toggle-dot" style="background:${s.color}"></span>
+        <span class="toggle-name">${s.name}</span>
+        <span class="ts"><input type="checkbox" ${checked} onchange="toggleSat('${s.name.replace(/'/g,"\\'")}',this.checked)"><span class="ts-track"></span></span>
+      </label>`;
+    }
+  }
+  // LEO toggle
+  html += `<div class="toggle-cat-label">Space Stations / LEO</div>`;
+  html += `<label class="toggle-row">
+    <span class="toggle-dot" style="background:#88AAFF"></span>
+    <span class="toggle-name">ISS, Tiangong &amp; others</span>
+    <span class="ts"><input type="checkbox" ${showLEO ? 'checked' : ''} onchange="showLEO=this.checked"><span class="ts-track"></span></span>
+  </label>`;
+
+  container.innerHTML = html;
+}
+
+function toggleSat(name, visible) {
+  if (visible) hiddenSatNames.delete(name);
+  else hiddenSatNames.add(name);
+}
+
+// ── GPS ───────────────────────────────────────────────────────────────────────
+
+function onGpsSuccess(pos) {
+  observerPos = { lat: pos.coords.latitude, lon: pos.coords.longitude, alt: pos.coords.altitude || 0 };
+  document.getElementById('gpsBadge').className = 'badge badge-green';
+  document.getElementById('gpsBadge').textContent = 'GPS ✓';
+  document.getElementById('locText').textContent =
+    pos.coords.latitude.toFixed(4) + '°, ' + pos.coords.longitude.toFixed(4) + '°';
+  document.getElementById('gpsBanner').style.display = 'none';
+}
+
+function onGpsError() {
+  if (!observerPos) {
+    document.getElementById('gpsBadge').className = 'badge badge-yellow';
+    document.getElementById('gpsBadge').textContent = 'GPS ✗';
+    document.getElementById('locText').textContent = 'GPS denied — tap banner to retry';
+    document.getElementById('gpsBanner').style.display = 'block';
+  }
+}
+
+function startGps() {
+  navigator.geolocation.getCurrentPosition(onGpsSuccess, onGpsError,
+    { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
+  navigator.geolocation.watchPosition(onGpsSuccess, undefined,
+    { enableHighAccuracy: true });
+}
+
+function retryGps() {
+  document.getElementById('gpsBadge').className = 'badge badge-gray';
+  document.getElementById('gpsBadge').textContent = 'GPS…';
+  document.getElementById('gpsBanner').style.display = 'none';
+  navigator.geolocation.getCurrentPosition(onGpsSuccess, onGpsError,
+    { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
 }
 
 // ── Start app ─────────────────────────────────────────────────────────────────
@@ -768,9 +893,27 @@ async function _doStart(orientationGranted) {
         if (isAbsolute) gotAbsolute = true;
         if (!isAbsolute && gotAbsolute) return;
         if (e.alpha === null) return;
-        orientation = { alpha: e.alpha, beta: e.beta ?? 90, gamma: e.gamma ?? 0 };
+
+        // webkitCompassHeading is tilt-compensated (iOS Safari & Chrome).
+        // Raw alpha suffers gimbal lock when the phone is tilted toward the sky.
+        let heading;
+        if (typeof e.webkitCompassHeading === 'number' && e.webkitCompassHeading >= 0) {
+          heading = e.webkitCompassHeading;
+        } else {
+          // Tilt-compensated heading via rotation matrix (ZXY convention)
+          const toRad = Math.PI / 180;
+          const a = (e.alpha || 0) * toRad;
+          const b = (e.beta  || 90) * toRad;
+          const g = (e.gamma || 0) * toRad;
+          const x = Math.cos(a) * Math.sin(b) * Math.sin(g) - Math.sin(a) * Math.cos(g);
+          const y = Math.sin(a) * Math.sin(b) * Math.sin(g) + Math.cos(a) * Math.cos(g);
+          heading = (Math.atan2(-x, y) * 180 / Math.PI + 360) % 360;
+        }
+
+        orientation = { alpha: heading, beta: e.beta ?? 90, gamma: e.gamma ?? 0 };
         if (!isAbsCompass) {
-          isAbsCompass = isAbsolute || e.absolute === true;
+          isAbsCompass = isAbsolute || e.absolute === true ||
+                         (typeof e.webkitCompassHeading === 'number' && e.webkitCompassHeading >= 0);
           document.getElementById('compassBadge').className = 'badge badge-green';
           document.getElementById('compassBadge').textContent = isAbsCompass ? 'Compass ✓' : 'Compass ~';
           document.getElementById('compassModeText').textContent = isAbsCompass
@@ -798,33 +941,7 @@ async function _doStart(orientationGranted) {
     }
 
     // GPS
-    navigator.geolocation.getCurrentPosition(
-      pos => {
-        observerPos = { lat: pos.coords.latitude, lon: pos.coords.longitude, alt: pos.coords.altitude || 0 };
-        document.getElementById('gpsBadge').className = 'badge badge-green';
-        document.getElementById('gpsBadge').textContent = 'GPS ✓';
-        document.getElementById('locText').textContent =
-          pos.coords.latitude.toFixed(4) + '°, ' + pos.coords.longitude.toFixed(4) + '°';
-      },
-      () => {
-        observerPos = { lat: 43.7001, lon: -79.4163, alt: 0 }; // Toronto fallback
-        document.getElementById('gpsBadge').className = 'badge badge-yellow';
-        document.getElementById('gpsBadge').textContent = 'GPS ✗';
-        document.getElementById('locText').textContent = 'GPS unavailable — using Toronto default';
-      },
-      { enableHighAccuracy: true, timeout: 15000 }
-    );
-    navigator.geolocation.watchPosition(
-      pos => {
-        observerPos = { lat: pos.coords.latitude, lon: pos.coords.longitude, alt: pos.coords.altitude || 0 };
-        document.getElementById('gpsBadge').className = 'badge badge-green';
-        document.getElementById('gpsBadge').textContent = 'GPS ✓';
-        document.getElementById('locText').textContent =
-          pos.coords.latitude.toFixed(4) + '°, ' + pos.coords.longitude.toFixed(4) + '°';
-      },
-      undefined,
-      { enableHighAccuracy: true }
-    );
+    startGps();
 
     // Fetch LEO TLEs
     fetch('https://celestrak.org/SATCAT/GP.php?GROUP=stations&FORMAT=TLE', { cache: 'no-cache' })
