@@ -737,18 +737,9 @@ function resetOffset() {
 
 // ── Start app ─────────────────────────────────────────────────────────────────
 
-async function startApp() {
-  show('loading');
-
+// Inner async function — runs after orientation permission is already granted.
+async function _doStart() {
   try {
-    // iOS orientation permission must be requested first, directly within the
-    // user gesture context — any prior await invalidates the gesture on iOS Safari.
-    if (typeof DeviceOrientationEvent !== 'undefined' &&
-        typeof DeviceOrientationEvent.requestPermission === 'function') {
-      const perm = await DeviceOrientationEvent.requestPermission();
-      if (perm !== 'granted') throw new Error('Motion sensor access denied. Please tap "Allow" when prompted.');
-    }
-
     // Camera
     stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: 'environment', width: { ideal: 1920 } },
@@ -834,6 +825,27 @@ async function startApp() {
 
   } catch (err) {
     showError(err.message || 'Initialization failed. Check permissions and try again.');
+  }
+}
+
+// Must be a plain (non-async) function so that requestPermission() is called
+// synchronously within the user gesture — iOS Safari rejects it otherwise.
+function startApp() {
+  show('loading');
+
+  if (typeof DeviceOrientationEvent !== 'undefined' &&
+      typeof DeviceOrientationEvent.requestPermission === 'function') {
+    DeviceOrientationEvent.requestPermission()
+      .then(perm => {
+        if (perm !== 'granted') {
+          showError('Motion sensor access denied. Please allow motion sensors in iOS Settings → Safari.');
+          return;
+        }
+        _doStart();
+      })
+      .catch(err => showError(err.message || 'Motion sensor permission request failed.'));
+  } else {
+    _doStart();
   }
 }
 
