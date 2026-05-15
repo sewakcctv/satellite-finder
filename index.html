@@ -703,6 +703,7 @@ function animate() {
   ctx.restore();
 
   // ── Target satellite ──
+  const now = Date.now();
   const inFrame = [];
   if (targetSat && observerPos) {
     const { az, el } = geoAzEl(observerPos.lat, observerPos.lon, targetSat.lon);
@@ -719,10 +720,11 @@ function animate() {
 
     if (pos.inFrame) {
       const { x, y } = pos;
+      const pulse = 1 + 0.06 * Math.sin(now * 0.004);
       ctx.save();
       ctx.shadowColor = targetSat.color; ctx.shadowBlur = 36;
       ctx.strokeStyle = targetSat.color; ctx.lineWidth = 2.5; ctx.globalAlpha = 0.9;
-      ctx.beginPath(); ctx.arc(x, y, 32, 0, Math.PI*2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(x, y, 32 * pulse, 0, Math.PI*2); ctx.stroke();
       ctx.shadowBlur = 14;
       ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI*2); ctx.stroke();
       ctx.fillStyle = targetSat.color;
@@ -732,8 +734,8 @@ function animate() {
       [0, 90, 180, 270].forEach(deg => {
         const rad = deg * Math.PI/180;
         ctx.beginPath();
-        ctx.moveTo(x + Math.cos(rad)*34, y + Math.sin(rad)*34);
-        ctx.lineTo(x + Math.cos(rad)*44, y + Math.sin(rad)*44);
+        ctx.moveTo(x + Math.cos(rad)*34*pulse, y + Math.sin(rad)*34*pulse);
+        ctx.lineTo(x + Math.cos(rad)*44*pulse, y + Math.sin(rad)*44*pulse);
         ctx.stroke();
       });
       // Label
@@ -759,18 +761,55 @@ function animate() {
     if (!pos.inFrame) continue;
     if (sat.el > 0) inFrame.push(sat);
 
+    const dx = pos.x - w/2, dy = pos.y - h/2;
+    const nearCenter = Math.sqrt(dx*dx + dy*dy) < 58;
+
     ctx.save();
-    ctx.globalAlpha = targetSat ? 0.4 : 0.85;
-    ctx.strokeStyle = sat.color; ctx.lineWidth = 1.5;
-    const r = sat.type === 'LEO' ? 11 : 7;
-    ctx.beginPath(); ctx.arc(pos.x, pos.y, r, 0, Math.PI*2); ctx.stroke();
-    ctx.fillStyle = sat.color;
-    ctx.beginPath(); ctx.arc(pos.x, pos.y, 3, 0, Math.PI*2); ctx.fill();
-    if (!targetSat && sat.el > -5) {
-      ctx.shadowColor = '#000'; ctx.shadowBlur = 4;
-      ctx.fillStyle = '#fff'; ctx.font = '10px monospace';
-      ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-      ctx.fillText(sat.name, pos.x + r + 5, pos.y - 4);
+    if (nearCenter && !targetSat) {
+      // Expand with pulse when the crosshair is on this satellite
+      const pulse = 1 + 0.07 * Math.sin(now * 0.005);
+      const r = (sat.type === 'LEO' ? 24 : 20) * pulse;
+      ctx.globalAlpha = 0.95;
+      ctx.shadowColor = sat.color; ctx.shadowBlur = 22;
+      ctx.strokeStyle = sat.color; ctx.lineWidth = 2.2;
+      ctx.beginPath(); ctx.arc(pos.x, pos.y, r, 0, Math.PI*2); ctx.stroke();
+      ctx.globalAlpha = 0.4; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(pos.x, pos.y, r * 0.35, 0, Math.PI*2); ctx.stroke();
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = sat.color;
+      ctx.beginPath(); ctx.arc(pos.x, pos.y, 4, 0, Math.PI*2); ctx.fill();
+      ctx.lineWidth = 1.8; ctx.globalAlpha = 0.65;
+      [0, 90, 180, 270].forEach(deg => {
+        const rad = deg * Math.PI/180;
+        ctx.beginPath();
+        ctx.moveTo(pos.x + Math.cos(rad)*(r+2), pos.y + Math.sin(rad)*(r+2));
+        ctx.lineTo(pos.x + Math.cos(rad)*(r+11), pos.y + Math.sin(rad)*(r+11));
+        ctx.stroke();
+      });
+      ctx.shadowColor = '#000'; ctx.shadowBlur = 6; ctx.globalAlpha = 1;
+      ctx.fillStyle = sat.color; ctx.font = 'bold 12px monospace';
+      ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+      ctx.fillText(sat.name, pos.x + r + 7, pos.y - 1);
+      ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.font = '10px monospace';
+      ctx.fillText('El '+sat.el.toFixed(1)+'°  Az '+Math.round(sat.az)+'°', pos.x + r + 7, pos.y + 12);
+    } else {
+      ctx.globalAlpha = targetSat ? 0.4 : 0.85;
+      ctx.strokeStyle = sat.color; ctx.lineWidth = 1.5;
+      const r = sat.type === 'LEO' ? 11 : 7;
+      ctx.beginPath(); ctx.arc(pos.x, pos.y, r, 0, Math.PI*2); ctx.stroke();
+      ctx.fillStyle = sat.color;
+      ctx.beginPath(); ctx.arc(pos.x, pos.y, 3, 0, Math.PI*2); ctx.fill();
+      if (!targetSat && sat.el > -5) {
+        ctx.shadowColor = '#000'; ctx.shadowBlur = 4;
+        ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.font = '10px monospace';
+        ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+        ctx.fillText(sat.name, pos.x + r + 5, pos.y - 4);
+      } else if (nearCenter) {
+        ctx.shadowColor = '#000'; ctx.shadowBlur = 4;
+        ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.font = '10px monospace';
+        ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+        ctx.fillText(sat.name, pos.x + r + 5, pos.y - 4);
+      }
     }
     ctx.restore();
   }
@@ -854,13 +893,14 @@ function buildSatToggles() {
   <label class="toggle-row">
     <span class="toggle-dot" style="background:#88AAFF"></span>
     <span class="toggle-name">ISS, Tiangong &amp; others</span>
-    <span class="ts"><input type="checkbox" ${showLEO?'checked':''} onchange="showLEO=this.checked"><span class="ts-track"></span></span>
+    <span class="ts"><input type="checkbox" ${showLEO?'checked':''} onchange="showLEO=this.checked; allSatViews=computeViews();"><span class="ts-track"></span></span>
   </label>`;
   el.innerHTML = html;
 }
 
 function toggleSat(name, visible) {
   if (visible) hiddenSatNames.delete(name); else hiddenSatNames.add(name);
+  allSatViews = computeViews();
 }
 
 // ── GPS ───────────────────────────────────────────────────────────────────────
