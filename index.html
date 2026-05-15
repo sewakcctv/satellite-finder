@@ -750,8 +750,8 @@ function resetOffset() {
 
 // ── Start app ─────────────────────────────────────────────────────────────────
 
-// Inner async function — runs after orientation permission is already granted.
-async function _doStart() {
+// orientationGranted: true if iOS permission was granted, false if denied/unavailable
+async function _doStart(orientationGranted) {
   try {
     // Camera
     stream = await navigator.mediaDevices.getUserMedia({
@@ -762,30 +762,40 @@ async function _doStart() {
     video.srcObject = stream;
     await video.play().catch(() => {});
 
-    // Orientation listeners
-    function handleOrient(e, isAbsolute) {
-      if (isAbsolute) gotAbsolute = true;
-      if (!isAbsolute && gotAbsolute) return;
-      if (e.alpha === null) return;
-      orientation = { alpha: e.alpha, beta: e.beta ?? 90, gamma: e.gamma ?? 0 };
-      if (!isAbsCompass) {
-        isAbsCompass = isAbsolute || e.absolute === true;
-        document.getElementById('compassBadge').className = 'badge badge-green';
-        document.getElementById('compassBadge').textContent = isAbsCompass ? 'Compass ✓' : 'Compass ~';
-        document.getElementById('compassModeText').textContent = isAbsCompass
-          ? 'Absolute (north-referenced) ✓'
-          : 'Relative — use offset to calibrate';
-        document.getElementById('compassModeText').className = isAbsCompass ? 'good' : 'warn';
-        document.getElementById('compassTip').style.display = 'none';
+    if (orientationGranted) {
+      // Orientation listeners
+      function handleOrient(e, isAbsolute) {
+        if (isAbsolute) gotAbsolute = true;
+        if (!isAbsolute && gotAbsolute) return;
+        if (e.alpha === null) return;
+        orientation = { alpha: e.alpha, beta: e.beta ?? 90, gamma: e.gamma ?? 0 };
+        if (!isAbsCompass) {
+          isAbsCompass = isAbsolute || e.absolute === true;
+          document.getElementById('compassBadge').className = 'badge badge-green';
+          document.getElementById('compassBadge').textContent = isAbsCompass ? 'Compass ✓' : 'Compass ~';
+          document.getElementById('compassModeText').textContent = isAbsCompass
+            ? 'Absolute (north-referenced) ✓'
+            : 'Relative — use offset to calibrate';
+          document.getElementById('compassModeText').className = isAbsCompass ? 'good' : 'warn';
+          document.getElementById('compassTip').style.display = 'none';
+        }
       }
-    }
-    window.addEventListener('deviceorientationabsolute', e => handleOrient(e, true));
-    window.addEventListener('deviceorientation',         e => handleOrient(e, false));
+      window.addEventListener('deviceorientationabsolute', e => handleOrient(e, true));
+      window.addEventListener('deviceorientation',         e => handleOrient(e, false));
 
-    // Show compass tip after 3 s if still no compass
-    setTimeout(() => {
-      if (!isAbsCompass) document.getElementById('compassTip').style.display = 'block';
-    }, 3000);
+      // Show compass tip after 3 s if still no compass
+      setTimeout(() => {
+        if (!isAbsCompass) document.getElementById('compassTip').style.display = 'block';
+      }, 3000);
+    } else {
+      // No compass — show badge and static tip, AR still works via manual satellite list
+      document.getElementById('compassBadge').className = 'badge badge-yellow';
+      document.getElementById('compassBadge').textContent = 'No Compass';
+      document.getElementById('compassModeText').textContent = 'Denied — enable in iOS Settings > Chrome > Motion & Fitness';
+      document.getElementById('compassModeText').className = 'warn';
+      document.getElementById('compassTip').textContent = 'Compass unavailable — use the satellite list below to look up elevations and azimuths manually.';
+      document.getElementById('compassTip').style.display = 'block';
+    }
 
     // GPS
     navigator.geolocation.getCurrentPosition(
@@ -857,19 +867,10 @@ function startApp() {
   if (typeof DeviceOrientationEvent !== 'undefined' &&
       typeof DeviceOrientationEvent.requestPermission === 'function') {
     DeviceOrientationEvent.requestPermission()
-      .then(perm => {
-        if (perm !== 'granted') {
-          showError('Motion sensor access denied. Please allow motion sensors in iOS Settings.');
-          return;
-        }
-        _doStart();
-      })
-      .catch(() => showError(
-        'Compass access was blocked. Please open this page directly in Safari or Chrome (not through WhatsApp or another app).',
-        true
-      ));
+      .then(perm => _doStart(perm === 'granted'))
+      .catch(() => _doStart(false));  // permission blocked — open app without compass
   } else {
-    _doStart();
+    _doStart(true);
   }
 }
 
