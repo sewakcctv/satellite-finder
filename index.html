@@ -15,14 +15,14 @@
   <link rel="apple-touch-icon" href="icon-192.png"/>
 
   <!-- Theme / tile colour -->
-  <meta name="theme-color" content="#22d3ee"/>
-  <meta name="msapplication-TileColor" content="#050a12"/>
+  <meta name="theme-color" content="#f0952a"/>
+  <meta name="msapplication-TileColor" content="#0d0d12"/>
   <meta name="msapplication-TileImage" content="icon-192.png"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #050a12; color: #fff;
+      background: #0d0d12; color: #ece7e0;
       height: 100dvh; overflow: hidden;
     }
     .screen {
@@ -35,70 +35,69 @@
     .intro-top { display: flex; flex-direction: column; align-items: center; gap: 6px; padding-top: 8px; }
     .sat-icon {
       width: 64px; height: 64px; border-radius: 50%;
-      border: 2px solid #22d3ee; background: #0f2030;
+      border: 2px solid #f0952a; background: #1a1410;
       display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 0 20px #22d3ee44;
     }
-    #intro h1 { font-size: 22px; font-weight: 700; color: #22d3ee; }
-    #intro .sub { font-size: 12px; color: #64748b; text-align: center; }
+    #intro h1 { font-size: 22px; font-weight: 700; color: #f0ebe5; }
+    #intro .sub { font-size: 12px; color: #6b6b72; text-align: center; }
 
     .picker-wrap {
       width: 100%; max-width: 480px;
-      background: #0c1626; border: 1px solid #1e3a5a; border-radius: 14px; overflow: hidden;
+      background: #161618; border: 1px solid #27272c; border-radius: 14px; overflow: hidden;
     }
     #satSearch {
-      width: 100%; background: #0f1f30; border: none; border-bottom: 1px solid #1e293b;
-      color: #fff; font-size: 15px; padding: 11px 16px; outline: none;
+      width: 100%; background: #1c1c20; border: none; border-bottom: 1px solid #27272c;
+      color: #ece7e0; font-size: 15px; padding: 11px 16px; outline: none;
     }
-    #satSearch::placeholder { color: #475569; }
+    #satSearch::placeholder { color: #52525a; }
     #satPickList { max-height: 300px; overflow-y: auto; }
     .pick-cat {
       padding: 5px 14px 2px; font-size: 10px; font-weight: 700;
-      color: #475569; text-transform: uppercase; letter-spacing: 0.08em; background: #090f1a;
+      color: #52525a; text-transform: uppercase; letter-spacing: 0.08em; background: #111114;
     }
     .pick-row {
       display: flex; align-items: center; gap: 10px;
-      padding: 10px 14px; cursor: pointer; border-bottom: 1px solid #0d1826;
+      padding: 10px 14px; cursor: pointer; border-bottom: 1px solid #1c1c20;
       transition: background 0.1s;
     }
-    .pick-row.selected { background: #0f2a3d; border-left: 3px solid #22d3ee; }
+    .pick-row.selected { background: #1e1508; border-left: 3px solid #f0952a; }
     .pick-dot  { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-    .pick-name { flex: 1; font-size: 13px; color: #e2e8f0; }
-    .pick-lon  { font-size: 11px; font-family: monospace; color: #475569; }
+    .pick-name { flex: 1; font-size: 13px; color: #e8e3dc; }
+    .pick-lon  { font-size: 11px; font-family: monospace; color: #52525a; }
 
     #selBar {
       width: 100%; max-width: 480px;
-      background: #0c2a1a; border: 1px solid #16a34a44; border-radius: 12px;
+      background: #0e1a0c; border: 1px solid rgba(34,197,94,0.2); border-radius: 12px;
       padding: 10px 14px; display: flex; align-items: center; gap: 10px;
     }
     #selBar .sel-dot  { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
     #selBar .sel-name { font-size: 14px; font-weight: 600; color: #4ade80; }
-    #selBar .sel-sub  { font-size: 11px; color: #64748b; margin-top: 1px; }
-    #selBar .clear-btn { margin-left: auto; background: none; border: none; color: #475569; font-size: 18px; cursor: pointer; }
+    #selBar .sel-sub  { font-size: 11px; color: #6b6b72; margin-top: 1px; }
+    #selBar .clear-btn { margin-left: auto; background: none; border: none; color: #52525a; font-size: 18px; cursor: pointer; }
 
     #startBtn {
       width: 100%; max-width: 480px; padding: 15px; border-radius: 14px;
-      background: #22d3ee; color: #050a12; font-size: 17px; font-weight: 700;
-      border: none; cursor: pointer; transition: background 0.15s, opacity 0.15s;
+      background: #f0952a; color: #0d0d12; font-size: 17px; font-weight: 700;
+      border: none; cursor: pointer; transition: opacity 0.15s;
     }
-    #startBtn:disabled { background: #1e293b; color: #475569; cursor: default; }
-    .fine-print { font-size: 11px; color: #334155; text-align: center; max-width: 280px; line-height: 1.5; }
+    #startBtn:disabled { background: #27272c; color: #52525a; cursor: default; }
+    .fine-print { font-size: 11px; color: #3a3a42; text-align: center; max-width: 280px; line-height: 1.5; }
 
     /* ── Loading / Error ── */
     #loading, #errScreen { justify-content: center; gap: 20px; padding: 24px; text-align: center; }
     .spinner {
       width: 56px; height: 56px;
-      border: 4px solid #22d3ee; border-top-color: transparent;
+      border: 4px solid #f0952a; border-top-color: transparent;
       border-radius: 50%; animation: spin 0.9s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
-    #loading p { color: #22d3ee; font-size: 17px; font-weight: 600; }
-    #loading small { color: #475569; font-size: 13px; }
+    #loading p { color: #f0952a; font-size: 17px; font-weight: 600; }
+    #loading small { color: #52525a; font-size: 13px; }
     #errScreen .err-icon { font-size: 48px; }
     #errMsg { color: #f87171; font-size: 15px; max-width: 300px; line-height: 1.5; }
     .err-btn {
-      padding: 12px 32px; border-radius: 12px; background: #1e3a4a; color: #22d3ee;
-      font-size: 15px; font-weight: 600; border: 1px solid #22d3ee44;
+      padding: 12px 32px; border-radius: 12px; background: #1e1a10; color: #f0952a;
+      font-size: 15px; font-weight: 600; border: 1px solid rgba(240,149,42,0.25);
       cursor: pointer; text-decoration: none; display: inline-block; text-align: center;
     }
 
@@ -115,10 +114,10 @@
       background: linear-gradient(rgba(0,0,0,0.75), transparent);
       pointer-events: none;
     }
-    #hudName { font-size: 12px; font-weight: 700; color: #22d3ee; margin-bottom: 3px; text-shadow: 0 1px 4px #000; }
+    #hudName { font-size: 12px; font-weight: 700; color: #f0952a; margin-bottom: 3px; text-shadow: 0 1px 4px #000; }
     .hud-stats { display: flex; gap: 18px; }
     .hud-stat  { display: flex; align-items: baseline; gap: 3px; }
-    .hud-label { font-size: 10px; color: #64748b; font-family: monospace; }
+    .hud-label { font-size: 10px; color: #6b6b72; font-family: monospace; }
     .hud-val   { font-size: 20px; font-weight: 700; font-family: monospace; color: #fff; text-shadow: 0 1px 4px #000; }
     .hud-val.close  { color: #4ade80; }
     .hud-val.medium { color: #fbbf24; }
@@ -131,7 +130,7 @@
     }
     .badge { padding: 3px 9px; border-radius: 99px; font-size: 11px; font-family: monospace; font-weight: 600; border: 1px solid; }
     .badge-green  { background: #052e1699; color: #4ade80; border-color: #16a34a55; }
-    .badge-gray   { background: #11182799; color: #64748b; border-color: #33415555; }
+    .badge-gray   { background: #18181b99; color: #6b6b72; border-color: #3a3a4255; }
     .badge-yellow { background: #1a110099; color: #fbbf24; border-color: #d9770655; }
 
     /* Top-right */
@@ -150,7 +149,7 @@
     }
     #compassTip {
       position: absolute; inset-x: 16px; bottom: 16px;
-      background: rgba(26,17,0,0.85); border: 1px solid #d9770677;
+      background: rgba(26,17,0,0.88); border: 1px solid rgba(217,119,6,0.4);
       border-radius: 12px; padding: 10px 14px;
       font-size: 12px; color: #fbbf24; text-align: center; pointer-events: none;
     }
@@ -158,79 +157,79 @@
     /* GPS denied panel */
     #gpsPanel {
       position: absolute; inset: 0; z-index: 5;
-      background: rgba(5,10,18,0.96);
+      background: rgba(13,13,18,0.97);
       flex-direction: column; align-items: center; justify-content: center;
       gap: 12px; padding: 20px; overflow-y: auto;
     }
     #gpsPanel .gps-title { font-size: 20px; font-weight: 700; color: #fbbf24; text-align: center; }
-    #gpsPanel .gps-hint  { font-size: 12px; color: #64748b; max-width: 300px; text-align: center; line-height: 1.6; }
+    #gpsPanel .gps-hint  { font-size: 12px; color: #6b6b72; max-width: 300px; text-align: center; line-height: 1.6; }
     .city-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; width: 100%; max-width: 360px; }
     .city-btn {
-      padding: 10px 4px; border-radius: 10px; background: #0f2030;
-      border: 1px solid #1e3a5a; color: #94a3b8; font-size: 12px; cursor: pointer;
+      padding: 10px 4px; border-radius: 10px; background: #1c1c20;
+      border: 1px solid #2a2a32; color: #a0a0a8; font-size: 12px; cursor: pointer;
     }
-    .city-btn:active { background: #1e3a5a; }
+    .city-btn:active { background: #2a2a32; }
     .manual-loc { display: flex; gap: 8px; width: 100%; max-width: 360px; }
     .manual-loc input {
-      flex: 1; background: #0f1f30; border: 1px solid #1e3a5a;
-      color: #fff; border-radius: 8px; padding: 8px 10px; font-size: 13px; outline: none;
+      flex: 1; background: #1c1c20; border: 1px solid #2a2a32;
+      color: #ece7e0; border-radius: 8px; padding: 8px 10px; font-size: 13px; outline: none;
     }
     .manual-loc button {
-      padding: 8px 16px; border-radius: 8px; background: #22d3ee;
-      color: #050a12; font-weight: 700; border: none; cursor: pointer; font-size: 13px;
+      padding: 8px 16px; border-radius: 8px; background: #f0952a;
+      color: #0d0d12; font-weight: 700; border: none; cursor: pointer; font-size: 13px;
     }
     .retry-btn {
-      padding: 10px 24px; border-radius: 10px; background: #1e293b;
-      color: #94a3b8; border: 1px solid #334155; cursor: pointer; font-size: 13px;
+      padding: 10px 24px; border-radius: 10px; background: #1c1c20;
+      color: #a0a0a8; border: 1px solid #2a2a32; cursor: pointer; font-size: 13px;
     }
 
     /* ── Satellite list ── */
-    #satList { background: rgba(10,15,25,0.97); border-top: 1px solid #1e293b; max-height: 150px; overflow-y: auto; }
-    .empty  { text-align: center; color: #334155; font-size: 12px; padding: 14px; }
+    #satList { background: rgba(13,13,18,0.97); border-top: 1px solid #27272c; max-height: 150px; overflow-y: auto; }
+    .empty  { text-align: center; color: #3a3a42; font-size: 12px; padding: 14px; }
     .sat-row {
       display: flex; align-items: center; gap: 10px;
-      padding: 9px 16px; border-bottom: 1px solid #0f172a; cursor: pointer;
+      padding: 9px 16px; border-bottom: 1px solid #1c1c20; cursor: pointer;
     }
     .sat-row.is-target { background: #0a1f0c; }
     .sat-dot  { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-    .sat-name { flex: 1; font-size: 13px; font-weight: 500; color: #f1f5f9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .sat-el   { font-size: 11px; font-family: monospace; color: #94a3b8; flex-shrink: 0; }
-    .sat-az   { font-size: 11px; font-family: monospace; color: #64748b; flex-shrink: 0; }
-    .sat-target-badge { font-size: 10px; background: #22d3ee; color: #050a12; border-radius: 4px; padding: 1px 5px; font-weight: 700; flex-shrink: 0; }
+    .sat-name { flex: 1; font-size: 13px; font-weight: 500; color: #f0ebe5; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sat-el   { font-size: 11px; font-family: monospace; color: #a0a0a8; flex-shrink: 0; }
+    .sat-az   { font-size: 11px; font-family: monospace; color: #6b6b72; flex-shrink: 0; }
+    .sat-target-badge { font-size: 10px; background: #f0952a; color: #0d0d12; border-radius: 4px; padding: 1px 5px; font-weight: 700; flex-shrink: 0; }
 
     /* ── Settings ── */
     #settings {
       position: absolute; inset: 0; z-index: 20;
-      background: rgba(5,10,18,0.98); flex-direction: column;
+      background: rgba(13,13,18,0.99); flex-direction: column;
     }
     .settings-header {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 16px 20px; border-bottom: 1px solid #1e293b;
+      padding: 16px 20px; border-bottom: 1px solid #27272c;
     }
     .settings-header h2 { font-size: 17px; font-weight: 700; }
     .settings-body { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 24px; }
-    .setting-group label { display: block; font-size: 13px; color: #94a3b8; font-weight: 600; margin-bottom: 6px; }
-    .setting-group label span { color: #22d3ee; }
-    .setting-group input[type=range] { width: 100%; accent-color: #22d3ee; }
-    .setting-note  { font-size: 11px; color: #475569; margin-top: 6px; line-height: 1.5; }
-    .reset-link    { font-size: 11px; color: #475569; text-decoration: underline; cursor: pointer; background: none; border: none; margin-top: 4px; }
-    .compass-status { background: #0f1f30; border-radius: 10px; padding: 12px 14px; font-size: 12px; }
-    .compass-status p { color: #94a3b8; }
+    .setting-group label { display: block; font-size: 13px; color: #a0a0a8; font-weight: 600; margin-bottom: 6px; }
+    .setting-group label span { color: #f0952a; }
+    .setting-group input[type=range] { width: 100%; accent-color: #f0952a; }
+    .setting-note  { font-size: 11px; color: #52525a; margin-top: 6px; line-height: 1.5; }
+    .reset-link    { font-size: 11px; color: #52525a; text-decoration: underline; cursor: pointer; background: none; border: none; margin-top: 4px; }
+    .compass-status { background: #1c1c20; border-radius: 10px; padding: 12px 14px; font-size: 12px; }
+    .compass-status p { color: #a0a0a8; }
     .compass-status .good { color: #4ade80; }
     .compass-status .warn { color: #fbbf24; }
 
     /* Toggle switches */
-    .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid #0f172a; font-size: 13px; color: #cbd5e1; }
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid #1c1c20; font-size: 13px; color: #d4cfc8; }
     .toggle-row:last-child { border-bottom: none; }
     .toggle-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; margin-right: 8px; }
     .toggle-name { flex: 1; }
     .ts { position: relative; width: 38px; height: 22px; flex-shrink: 0; }
     .ts input { opacity: 0; width: 0; height: 0; }
-    .ts-track { position: absolute; inset: 0; background: #334155; border-radius: 22px; cursor: pointer; transition: background 0.2s; }
+    .ts-track { position: absolute; inset: 0; background: #3a3a42; border-radius: 22px; cursor: pointer; transition: background 0.2s; }
     .ts-track::before { content: ''; position: absolute; width: 16px; height: 16px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: transform 0.2s; }
-    .ts input:checked + .ts-track { background: #22d3ee; }
+    .ts input:checked + .ts-track { background: #f0952a; }
     .ts input:checked + .ts-track::before { transform: translateX(16px); }
-    .toggle-cat-label { font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.06em; padding: 10px 0 4px; }
+    .toggle-cat-label { font-size: 11px; font-weight: 700; color: #52525a; text-transform: uppercase; letter-spacing: 0.06em; padding: 10px 0 4px; }
   </style>
 </head>
 <body>
@@ -240,10 +239,10 @@
   <div class="intro-top">
     <div class="sat-icon">
       <svg viewBox="0 0 48 48" width="46" height="46" fill="none">
-        <circle cx="24" cy="24" r="10" stroke="#22d3ee" stroke-width="2"/>
-        <ellipse cx="24" cy="24" rx="22" ry="8" stroke="#22d3ee" stroke-width="1.5" stroke-dasharray="3 3"/>
-        <ellipse cx="24" cy="24" rx="22" ry="8" stroke="#22d3ee" stroke-width="1.5" stroke-dasharray="3 3" transform="rotate(60 24 24)"/>
-        <ellipse cx="24" cy="24" rx="22" ry="8" stroke="#22d3ee" stroke-width="1.5" stroke-dasharray="3 3" transform="rotate(120 24 24)"/>
+        <circle cx="24" cy="24" r="10" stroke="#f0952a" stroke-width="2"/>
+        <ellipse cx="24" cy="24" rx="22" ry="8" stroke="#f0952a" stroke-width="1.5" stroke-dasharray="3 3"/>
+        <ellipse cx="24" cy="24" rx="22" ry="8" stroke="#f0952a" stroke-width="1.5" stroke-dasharray="3 3" transform="rotate(60 24 24)"/>
+        <ellipse cx="24" cy="24" rx="22" ry="8" stroke="#f0952a" stroke-width="1.5" stroke-dasharray="3 3" transform="rotate(120 24 24)"/>
       </svg>
     </div>
     <h1>Satellite Finder</h1>
@@ -265,7 +264,7 @@
   </div>
 
   <button id="startBtn" onclick="startApp()" disabled>Select a satellite to begin</button>
-  <p class="fine-print">Needs camera, GPS &amp; compass.<br>Open directly in Safari or Chrome — not through WhatsApp.</p>
+  <p class="fine-print">Needs camera, GPS &amp; compass.<br>Best used in Safari or Chrome.</p>
 </div>
 
 <!-- ══════════════════ LOADING ══════════════════ -->
@@ -991,7 +990,7 @@ async function _doStart(hasCompass) {
 
 function startApp() {
   if (isInAppBrowser()) {
-    showError('Please open this page directly in Safari or Chrome — WhatsApp and other in-app browsers block compass access.', true);
+    showError('Please open this page in Safari or Chrome. In-app browsers do not support compass access.', true);
     return;
   }
   show('loading');
